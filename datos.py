@@ -61,7 +61,7 @@ def cargar_estaciones(ruta: Path = RUTA_ESTACIONES) -> list[Estacion]:
 def descargar_red_vial(lugar: str = LUGAR_OSM) -> Grafo:
     """Baja la red de calles aptas para bici de OSM y la convierte a nuestro `Grafo`."""
     import osmnx as ox                   # import perezoso: solo se necesita al descargar
-
+    ox.settings.overpass_url = "https://maps.mail.ru/osm/tools/overpass/api"
     g_osm = ox.graph_from_place(lugar, network_type="bike")
     grafo = Grafo()
     for nodo, d in g_osm.nodes(data=True):
