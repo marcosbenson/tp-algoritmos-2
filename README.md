@@ -17,7 +17,8 @@ python -m unittest discover -s tests -v     # validación (sin conexión)
 python main.py --demo                       # ciudad sintética (sin conexión)
 python main.py --descargar                  # baja datos reales y los guarda en datos/
 python main.py                              # usa los datos guardados
-python main.py --origen=-34.6037,-58.3816 --destino=-34.5810,-58.4208
+python main.py --origen=-34.6037,-58.3816
+python main.py --destino=-34.5810,-58.4208
 ```
 
 ## Notas
