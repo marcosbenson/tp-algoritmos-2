@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import math
-from collections.abc import ItemsView
+from collections.abc import Collection, ItemsView
 from dataclasses import dataclass
 
 import numpy as np
@@ -69,6 +69,79 @@ class Grafo:
 
     def peso(self, u: int, v: int) -> float:
         return self._ady[u][v]
+
+    def tiene_arista(self, u: int, v: int) -> bool:
+        return v in self._ady.get(u, ())
+
+    def invertido(self) -> Grafo:
+        """Mismo grafo con todas las aristas al revés.
+
+        Dijkstra sobre el invertido desde S da, para cada nodo, la distancia de IR
+        hasta S en el grafo original (respetando los sentidos de las calles).
+        """
+        g = Grafo()
+        for n, (lat, lon) in self._coords.items():
+            g.agregar_nodo(n, lat, lon)
+        for u, vs in self._ady.items():
+            for v, w in vs.items():
+                g.agregar_arista(v, u, w)
+        return g
+
+    def subgrafo(self, nodos: Collection[int]) -> Grafo:
+        """Grafo inducido por `nodos` (solo quedan las aristas con ambos extremos adentro)."""
+        quedan = set(nodos)
+        g = Grafo()
+        for n in quedan:
+            g.agregar_nodo(n, *self._coords[n])
+        for u in quedan:
+            for v, w in self._ady[u].items():
+                if v in quedan:
+                    g.agregar_arista(u, v, w)
+        return g
+
+    def componente_fuerte_mayor(self) -> set[int]:
+        """Mayor conjunto de nodos mutuamente alcanzables (Kosaraju iterativo).
+
+        En OSM real hay tramos aislados o calles que solo se pueden recorrer en un
+        sentido y no llevan a ningún lado: ahí 'distancia a una estación' no tiene sentido.
+        """
+        visto: set[int] = set()
+        orden: list[int] = []                      # nodos por tiempo de finalización
+        for s in self._ady:
+            if s in visto:
+                continue
+            visto.add(s)
+            pila = [(s, iter(self._ady[s]))]
+            while pila:
+                u, it = pila[-1]
+                for v in it:
+                    if v not in visto:
+                        visto.add(v)
+                        pila.append((v, iter(self._ady[v])))
+                        break
+                else:                              # agotó los vecinos de u
+                    pila.pop()
+                    orden.append(u)
+
+        inv = self.invertido()
+        asignado: set[int] = set()
+        mejor: set[int] = set()
+        for s in reversed(orden):
+            if s in asignado:
+                continue
+            comp = {s}
+            asignado.add(s)
+            pila2 = [s]
+            while pila2:
+                u = pila2.pop()
+                for v in inv._ady[u]:
+                    if v not in asignado:
+                        asignado.add(v)
+                        comp.add(v)
+                        pila2.append(v)
+            if len(comp) > len(mejor):
+                mejor = comp
+        return mejor
 
     def nodo_mas_cercano(self, lat: float, lon: float) -> int:
         """Nodo más cercano en línea recta (aprox. equirectangular, suficiente a escala ciudad)."""

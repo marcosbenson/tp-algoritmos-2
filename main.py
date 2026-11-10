@@ -4,7 +4,7 @@ Uso:
     python main.py --demo                       # ciudad sintética, sin conexión
     python main.py --descargar                  # baja estaciones (CityBikes) y calles (OSM) y las guarda
     python main.py                              # usa los datos guardados (ruta por defecto en CABA)
-    python main.py --origen=-34.6037,-58.3816 --destino=-34.5810,-58.4208
+    python main.py --origen -34.6037,-58.3816 --destino -34.5810,-58.4208
 """
 from __future__ import annotations
 

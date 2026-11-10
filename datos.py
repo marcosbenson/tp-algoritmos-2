@@ -5,6 +5,7 @@ import gzip
 import json
 import math
 import random
+import time
 from pathlib import Path
 
 from grafo import Estacion, Grafo, haversine
@@ -18,6 +19,13 @@ CIUDAD = "buenos aires"                  # se busca la red por ciudad y país, N
 PAIS = "AR"                              # (el id "ecobici" es el de Ciudad de México)
 LUGAR_OSM = "Ciudad Autónoma de Buenos Aires, Argentina"
 DISTANCIA_MAX_NODO_M = 300               # una estación más lejos que esto de la red se descarta
+# Servidores públicos de Overpass (se prueban en orden; sin "/interpreter" al final)
+ENDPOINTS_OVERPASS = [
+    "https://overpass-api.de/api",
+    "https://overpass.kumi.systems/api",
+    "https://overpass.private.coffee/api",
+]
+REINTENTOS = 3                           # por servidor, con espera doble entre intentos
 
 
 # ---------------------------------------------------------------- estaciones
@@ -61,8 +69,28 @@ def cargar_estaciones(ruta: Path = RUTA_ESTACIONES) -> list[Estacion]:
 def descargar_red_vial(lugar: str = LUGAR_OSM) -> Grafo:
     """Baja la red de calles aptas para bici de OSM y la convierte a nuestro `Grafo`."""
     import osmnx as ox                   # import perezoso: solo se necesita al descargar
-    ox.settings.overpass_url = "https://maps.mail.ru/osm/tools/overpass/api"
-    g_osm = ox.graph_from_place(lugar, network_type="bike")
+
+    g_osm = None
+    for endpoint in ENDPOINTS_OVERPASS:
+        for attr in ("overpass_url", "overpass_endpoint"):   # el nombre cambió entre versiones
+            if hasattr(ox.settings, attr):
+                setattr(ox.settings, attr, endpoint)
+        espera = 10
+        for intento in range(1, REINTENTOS + 1):
+            try:
+                print(f"  Overpass: {endpoint} (intento {intento}/{REINTENTOS})")
+                g_osm = ox.graph_from_place(lugar, network_type="bike")
+                break
+            except Exception as exc:                          # 502/504/timeout: servidor saturado
+                print(f"    falló: {str(exc).splitlines()[0][:110]}")
+                if intento < REINTENTOS:
+                    print(f"    reintento en {espera} s...")
+                    time.sleep(espera)
+                    espera *= 2
+        if g_osm is not None:
+            break
+    if g_osm is None:
+        raise RuntimeError("Ningún servidor Overpass respondió. Probá de nuevo en unos minutos.")
     grafo = Grafo()
     for nodo, d in g_osm.nodes(data=True):
         grafo.agregar_nodo(int(nodo), d["y"], d["x"])
