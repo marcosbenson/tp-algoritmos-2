@@ -26,6 +26,7 @@ ENDPOINTS_OVERPASS = [
     "https://overpass.private.coffee/api",
 ]
 REINTENTOS = 3                           # por servidor, con espera doble entre intentos
+TIMEOUT_OSMNX_S = 180                    # timeout por request de Overpass (osmnx)
 
 
 # ---------------------------------------------------------------- estaciones
@@ -66,15 +67,29 @@ def cargar_estaciones(ruta: Path = RUTA_ESTACIONES) -> list[Estacion]:
 
 
 # ----------------------------------------------------------------- red vial
+def _configurar_osmnx(endpoint: str) -> None:
+    """Apunta osmnx al endpoint de Overpass y fija timeout/rate limit de forma compatible.
+
+    El nombre del setting cambió entre versiones de osmnx; se prueban los dos.
+    """
+    import osmnx as ox
+
+    for attr in ("overpass_url", "overpass_endpoint"):
+        if hasattr(ox.settings, attr):
+            setattr(ox.settings, attr, endpoint)
+    if hasattr(ox.settings, "timeout"):
+        ox.settings.timeout = TIMEOUT_OSMNX_S
+    if hasattr(ox.settings, "overpass_rate_limit"):
+        ox.settings.overpass_rate_limit = False   # los reintentos con backoff ya lo manejan
+
+
 def descargar_red_vial(lugar: str = LUGAR_OSM) -> Grafo:
     """Baja la red de calles aptas para bici de OSM y la convierte a nuestro `Grafo`."""
     import osmnx as ox                   # import perezoso: solo se necesita al descargar
 
     g_osm = None
     for endpoint in ENDPOINTS_OVERPASS:
-        for attr in ("overpass_url", "overpass_endpoint"):   # el nombre cambió entre versiones
-            if hasattr(ox.settings, attr):
-                setattr(ox.settings, attr, endpoint)
+        _configurar_osmnx(endpoint)
         espera = 10
         for intento in range(1, REINTENTOS + 1):
             try:

@@ -99,9 +99,13 @@ def dijkstra_podado(
     triangular). Por eso explora solo la zona donde `origen` realmente ayudaría.
 
     `grafo` debe ser el INVERTIDO si `actual` mide distancias hacia las estaciones.
-    Retorna {nodo: nueva distancia}, incluyendo a `origen` con 0 (vacío si ya es fuente).
+    Retorna {nodo: nueva distancia}, incluyendo a `origen` con 0.
+
+    Devuelve {} si `origen` ya es fuente (actual[origen] == 0) o si no está en `actual`
+    (no hay una distancia de referencia contra la cual mejorar).
     """
-    if not 0.0 < actual.get(origen, math.inf):
+    d_origen = actual.get(origen, math.inf)
+    if d_origen <= 0 or math.isinf(d_origen):
         return {}
     mejor: dict[int, float] = {origen: 0.0}
     fijados: set[int] = set()

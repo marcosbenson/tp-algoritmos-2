@@ -87,6 +87,7 @@ def main() -> None:
     grafico.dibujar_comparacion(
         grafo, nodos_estacion, resultados, args.radio, args.salida / "comparacion.png",
         f"Tres criterios para ubicar {args.k} estaciones nuevas · radio {args.radio:.0f} m",
+        ctx.invertido,
     )
     print(f"\nArchivos en {args.salida}/: comparacion.png, comparacion_ubicaciones.csv, comparacion_metricas.csv")
 

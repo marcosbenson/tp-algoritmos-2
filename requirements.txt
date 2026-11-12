@@ -1,5 +1,5 @@
-numpy
-requests
-osmnx
-networkx
-matplotlib
+numpy>=1.24,<3
+requests>=2.28,<3
+osmnx>=2.0,<3
+networkx>=3.0,<4
+matplotlib>=3.7,<4

@@ -50,11 +50,14 @@ def evaluar(
     """Métricas de un conjunto de estaciones, calculadas desde cero.
 
     Solo cuentan los nodos con peso > 0 (con datos de demanda, los lugares sin demanda no
-    deben decidir la distancia máxima).
+    deben decidir la distancia máxima). Si no hay ningún nodo con peso, las métricas que
+    dividen por el total devuelven NaN (no hay población a la cual promediar).
     """
     dist, _ = distancias_a_estacion(grafo, nodos_estacion, invertido)
     activos = {n: d for n, d in dist.items() if pesos.get(n, 0.0) > 0}
     total = sum(pesos[n] for n in activos)
+    if total == 0:
+        return {"cobertura_pct": 0.0, "media_m": math.nan, "p90_m": math.nan, "max_m": math.nan}
     return {
         "cobertura_pct": porcentaje_cubierto(activos, pesos, radio),
         "media_m": sum(pesos[n] * d for n, d in activos.items()) / total,
@@ -71,27 +74,36 @@ def p_mediana(
 
     Ganancia de un candidato c = suma sobre los nodos que mejorarían de peso * (distancia actual
     - distancia nueva). Esa ganancia solo puede bajar a medida que se agregan estaciones
-    (función submodular), por eso sirve la evaluación perezosa: se guarda una cota superior por
-    candidato y solo se recalcula la del que está primero.
+    (función submodular), así que las cotas guardadas en la cola son superiores y nunca
+    subestiman. En cada pop se recalcula la ganancia real del candidato sacado (con
+    `dijkstra_podado`, que es barato porque solo explora donde ese candidato ayudaría);
+    si resulta menor que la cota del tope, se reinserta con la cota actualizada. Eso no es
+    el lazy greedy "puro" (que evita recalcular hasta que el tope gana), pero el podado hace
+    que el recálculo sea económico y el resultado es el mismo.
 
     Requiere que `dist` cubra todos los nodos (red fuertemente conexa con >= 1 estación).
     """
+    if k <= 0:
+        return []
     inv = invertido if invertido is not None else grafo.invertido()
     actual = dict(dist)
 
     def ganancia(c: int) -> float:
         return sum(pesos.get(n, 0.0) * (actual[n] - nd) for n, nd in dijkstra_podado(inv, c, actual).items())
 
+    # Candidatos: todos los nodos con distancia > 0. Los que no tienen peso ni vecinos con peso
+    # dan ganancia 0 y se descartan solos (el tope con ganancia <= 0 corta la búsqueda).
     cola = [(-ganancia(c), c) for c, d in actual.items() if d > 0]
     heapq.heapify(cola)
 
     elegidas: list[int] = []
     while cola and len(elegidas) < k:
         _, c = heapq.heappop(cola)
-        g = ganancia(c)
+        g = ganancia(c)                       # recalcular: la cota guardada puede ser vieja
         if g <= 0:
+            # las cotas son superiores y solo decrecen: si el tope no gana nada, nadie gana
             break
-        if cola and g < -cola[0][0]:               # otra podría ganar más: reinsertar y seguir
+        if cola and g < -cola[0][0]:          # otra podría ganar más: reinsertar y seguir
             heapq.heappush(cola, (-g, c))
             continue
         elegidas.append(c)
@@ -108,10 +120,16 @@ def p_centro(
     Cada paso pone una estación EN el nodo que hoy está más lejos de todas. Es la heurística
     clásica (Gonzalez) y es muy sensible a los puntos extremos: la ciudad entera se mide por
     su peor rincón.
+
+    Solo considera nodos con peso > 0 como candidatos y como referencia: con datos de demanda,
+    los lugares sin demanda no deben decidir la distancia máxima. Si todos los nodos activos
+    ya están a distancia 0, devuelve menos de `k` (no hay dónde poner más).
     """
     inv = invertido if invertido is not None else grafo.invertido()
     actual = dict(dist)
     activos = [n for n in actual if pesos.get(n, 0.0) > 0]
+    if k <= 0 or not activos:
+        return []
 
     elegidas: list[int] = []
     for _ in range(k):

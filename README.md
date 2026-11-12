@@ -26,6 +26,7 @@ asociadas a su nodo más cercano, y Dijkstra propio con `heapq`. Tres usos:
 pip install -r requirements.txt
 python -m unittest discover -s tests -v     # validación (sin conexión)
 python main.py --descargar                  # baja datos reales y los guarda en datos/
+python main.py --demo                       # ruta de ejemplo; genera resultados/ruta.png
 python analizar.py                          # análisis con los datos guardados
 python analizar.py --radio 400 --k 15       # radio de cobertura (m) y estaciones nuevas
 python analizar.py --quitar 20              # cuántas estaciones redundantes listar (por defecto 10)
@@ -34,6 +35,15 @@ python analizar.py --demo                   # todo con una ciudad sintética, si
 ```
 Salida de `analizar.py` en `resultados/`: `cobertura.png`, `candidatas.csv` y `redundantes.csv`
 (ambos con link a Google Maps por ubicación) y `estaciones.csv`.
+
+## Gráficos
+- `ruta.png` (`main.py`): la ruta por calle, la línea recta, las estaciones más cercanas (por calle y en
+  recta) y la "ola" de Dijkstra: los nodos que exploró hasta fijar el destino, coloreados por distancia.
+- `cobertura.png` (`analizar.py`): mapa de distancia a la estación más cercana (la línea en la barra de color
+  marca el radio), curva de cobertura acumulada **hoy vs. con las propuestas**, y barras con lo que suma cada
+  ubicación propuesta y lo que se pierde al sacar cada estación redundante.
+- `comparacion.png` (`comparar.py`): un mapa por criterio con la distancia que resulta de aplicarlo (misma
+  escala en los tres) y una columna por métrica; ✓ marca el mejor criterio en cada una.
 
 Comparación de criterios:
 ```

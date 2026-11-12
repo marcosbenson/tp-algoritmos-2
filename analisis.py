@@ -63,8 +63,13 @@ def distancias_a_estacion(
 
 
 def porcentaje_cubierto(dist: dict[int, float], pesos: dict[int, float], umbral: float) -> float:
-    """% del peso total que está a `umbral` metros o menos de una estación."""
-    total = sum(pesos.get(n, 0.0) for n in dist)
+    """% del peso total que está a `umbral` metros o menos de una estación.
+
+    El total se toma de `pesos` (todo el peso del grafo), no de `dist`: si `dist` es parcial
+    (nodos inalcanzables, subgrafo podado), esos nodos cuentan como NO cubiertos, que es lo
+    correcto. Sumar solo sobre `dist` inflaba el porcentaje.
+    """
+    total = sum(pesos.values())
     if total == 0:
         return 0.0
     cubierto = sum(pesos.get(n, 0.0) for n, d in dist.items() if d <= umbral)
@@ -72,11 +77,19 @@ def porcentaje_cubierto(dist: dict[int, float], pesos: dict[int, float], umbral:
 
 
 def percentil_ponderado(dist: dict[int, float], pesos: dict[int, float], q: float) -> float:
-    """Distancia por debajo de la cual queda el `q` (0-1) del peso total."""
-    pares = sorted((d, pesos.get(n, 0.0)) for n, d in dist.items())
-    total = sum(p for _, p in pares)
+    """Distancia por debajo de la cual queda el `q` (0-1) del peso total.
+
+    Los nodos con peso > 0 que no están en `dist` (inalcanzables) no se pueden ordenar por
+    distancia: se cuentan como infinito al final. Así el percentil nunca subestima.
+    """
+    total = sum(pesos.values())
     if total == 0:
         return math.nan
+    pares = [(d, pesos.get(n, 0.0)) for n, d in dist.items() if pesos.get(n, 0.0) > 0]
+    faltan = total - sum(p for _, p in pares)
+    pares.sort(key=lambda t: t[0])
+    if faltan > 0:
+        pares.append((math.inf, faltan))
     acumulado = 0.0
     for d, p in pares:
         acumulado += p
@@ -92,6 +105,10 @@ def espaciado_entre_estaciones(
     """Por estación: metros por calle hasta la estación más cercana (ida desde ella).
 
     inf si no llega a ninguna otra. 0 si comparte nodo con otra estación.
+
+    Costo: un Dijkstra por cada nodo con estaciones (O(estaciones · (V+E) log V)). Para CABA
+    (~200-400 estaciones) es aceptable; si la red crece, conviene un multi-fuente que registre
+    la segunda fuente más cercana.
     """
     todos = set(por_nodo)
     resultado: dict[str, float] = {}
@@ -137,10 +154,14 @@ def proponer_estaciones(
     Solo se consideran como candidatos los nodos hoy descubiertos: poner una estación donde
     ya hay una cerca no agrega cobertura.
     """
+    if k <= 0:
+        return []
     inv = invertido if invertido is not None else grafo.invertido()
-    total = sum(pesos.get(n, 0.0) for n in dist)
+    total = sum(pesos.values())
     cubierto_hoy = sum(pesos.get(n, 0.0) for n, d in dist.items() if d <= radio)
     descubiertos = {n for n, d in dist.items() if d > radio}
+    if not descubiertos or total == 0:
+        return []
 
     # zona[c] = nodos descubiertos desde los que se llega a c en <= radio metros
     zona: dict[int, list[int]] = {}
@@ -172,8 +193,8 @@ def proponer_estaciones(
         lat, lon = grafo.coords(c)
         elegidas.append(Candidata(
             orden=len(elegidas) + 1, nodo=c, lat=lat, lon=lon,
-            ganancia=g, ganancia_pct=100.0 * g / total if total else 0.0,
-            cobertura_acumulada_pct=100.0 * acumulado / total if total else 0.0,
+            ganancia=g, ganancia_pct=100.0 * g / total,
+            cobertura_acumulada_pct=100.0 * acumulado / total,
             nodos_nuevos=len(nuevos),
         ))
     return elegidas
@@ -188,7 +209,7 @@ class Quitada:
     perdida_pct: float             # lo mismo como % del total
     cobertura_restante_pct: float
     nodos_perdidos: int            # intersecciones que quedan sin cobertura
-    compartida_pct: float          # % de lo que cubre que también cubren otras estaciones
+    compartida_pct: float          # % de lo que cubre que también cubren otras (0 si no cubre nada)
 
 
 def proponer_quitar(
@@ -210,8 +231,10 @@ def proponer_quitar(
     Estaciones en una misma intersección cuentan como estaciones distintas (pérdida 0 para ambas
     mientras haya otra ahí).
     """
+    if not por_nodo or cantidad <= 0:
+        return []
     inv = invertido if invertido is not None else grafo.invertido()
-    total = sum(pesos.get(n, 0.0) for n in grafo.nodos())
+    total = sum(pesos.values())
 
     zona: dict[int, list[int]] = {}                 # nodo con estaciones -> nodos que llegan en <= radio
     cuenta: dict[int, int] = {}                     # nodo -> cuántas estaciones lo cubren
@@ -250,7 +273,7 @@ def proponer_quitar(
             perdida_pct=100.0 * p / total if total else 0.0,
             cobertura_restante_pct=100.0 * cubierto / total if total else 0.0,
             nodos_perdidos=len(solos),
-            compartida_pct=100.0 * (1.0 - p / peso_zona) if peso_zona else 100.0,
+            compartida_pct=100.0 * (1.0 - p / peso_zona) if peso_zona else 0.0,
         ))
     return quitadas
 
