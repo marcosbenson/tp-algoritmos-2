@@ -77,15 +77,4 @@ python comparar.py --demo --k 8 --radio 250 # con la ciudad sintética, sin cone
 - Solo se analiza la **mayor componente fuertemente conexa** de la red: los tramos aislados o sin salida
   se descartan, porque ahí "distancia a una estación" no tiene sentido.
 
-## Limitaciones
-- Sin `--demanda`, el criterio es solo de **oferta** (zonas lejos de estaciones), no de demanda: puede proponer
-  zonas poco pobladas. Cruzarlo con población, comercios o transporte mejora mucho el resultado.
-- **p-centro es muy sensible a los extremos:** mide la ciudad por su peor rincón, así que tiende a elegir
-  bordes y esquinas (parques, predios, zonas casi sin gente). Con datos de demanda esto se corrige, porque
-  los nodos sin peso no cuentan. La heurística tampoco es óptima: en pruebas puede quedar apenas por
-  detrás de p-mediana incluso en su propia métrica.
-- Una estación "redundante" lo es **para la cobertura**, no necesariamente para el servicio: la cobertura
-  no mide capacidad, cantidad de bicis ni uso. Una estación solapada puede ser la que absorbe la demanda.
-- Las ubicaciones son **intersecciones**: hay que verificar en el lugar si hay espacio (vereda, permiso).
-- Solo se usa la **ubicación** de las estaciones, no la disponibilidad en vivo ni los viajes reales.
-- Se guarda un snapshot (`datos/estaciones.json`, `datos/red_vial.json.gz`) para que los resultados sean reproducibles.
+
