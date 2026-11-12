@@ -37,8 +37,7 @@ Salida de `analizar.py` en `resultados/`: `cobertura.png`, `candidatas.csv` y `r
 (ambos con link a Google Maps por ubicación) y `estaciones.csv`.
 
 ## Gráficos
-- `ruta.png` (`main.py`): la ruta por calle, la línea recta, las estaciones más cercanas (por calle y en
-  recta) y la "ola" de Dijkstra: los nodos que exploró hasta fijar el destino, coloreados por distancia.
+- `ciudad.png` (`main.py`): cobertura de la ciudad con dijkstra marcando las estaciones.
 - `cobertura.png` (`analizar.py`): mapa de distancia a la estación más cercana (la línea en la barra de color
   marca el radio), curva de cobertura acumulada **hoy vs. con las propuestas**, y barras con lo que suma cada
   ubicación propuesta y lo que se pierde al sacar cada estación redundante.
